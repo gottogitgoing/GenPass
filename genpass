@@ -1,0 +1,118 @@
+#!/bin/bash
+# ---------------------------------------------------------------------------
+# genpass - Generate a password.
+
+# Copyright 2021, Peter, <frogsinspace@gmail.com>
+# All rights reserved.
+
+# Usage: genpass [-h|--help] [-s|--special] [-n|--number <number>]
+
+# Revision history:
+# 2021-05-15 Created by new_script ver. 3.3
+# ---------------------------------------------------------------------------
+
+PROGNAME=${0##*/}
+VERSION="0.1"
+
+#Change this variable to alter the number of default characters generated.
+DEF_NUM_CHARS="14"
+#Variable to hold special characters used
+SPECIAL_CHARACTERS='.<>*+?@#^!'
+
+clean_up() { # Perform pre-exit housekeeping
+  return
+}
+
+error_exit() {
+  echo -e "${PROGNAME}: ${1:-"Unknown Error"}" >&2
+  clean_up
+  exit 1
+}
+
+graceful_exit() {
+  clean_up
+  exit
+}
+
+signal_exit() { # Handle trapped signals
+  case $1 in
+    INT)
+      error_exit "Program interrupted by user" ;;
+    TERM)
+      echo -e "\n$PROGNAME: Program terminated" >&2
+      graceful_exit ;;
+    *)
+      error_exit "$PROGNAME: Terminating on unknown signal" ;;
+  esac
+}
+
+usage() {
+  echo -e "Usage: $PROGNAME [-h|--help] [-a|--allow] [-s|--special] [-n|--number number]"
+}
+
+help_message() {
+  cat <<- _EOF_
+  $PROGNAME ver. $VERSION
+  Generate a password.
+
+  $(usage)
+
+  Options:
+  -h, --help             Display this help message and exit.
+  -a, --allow            Allow consequetive identical characters.
+  -s, --special          Include the special characters $SPECIAL_CHARACTERS 
+  -n, --number number    Number of characters to generate.
+                         Default = $DEF_NUM_CHARS characters.
+
+_EOF_
+  return
+}
+
+genpass ()
+{
+	if [ $SPECIAL_CHARS ]
+	then
+			CHARS="[:alnum:]$SPECIAL_CHARACTERS"
+	else
+			CHARS="[:alnum:]"
+	fi
+	if [ $ALLOW ]
+	then
+		tr -dc $CHARS < /dev/urandom | head -c ${1:-$DEF_NUM_CHARS};
+		echo
+	else
+		tr -dcs $CHARS $CHARS < /dev/urandom | head -c ${1:-$DEF_NUM_CHARS};
+	    echo
+	fi
+}
+
+# Trap signals
+trap "signal_exit TERM" TERM HUP
+trap "signal_exit INT"  INT
+
+
+
+# Parse command-line
+while [[ -n $1 ]]; do
+  case $1 in
+    -a | --allow)
+	  ALLOW=true ;;
+    -h | --help)
+      help_message; graceful_exit ;;
+    -s | --special)
+      SPECIAL_CHARS="true" ;;
+    -n | --number)
+	  NUMBER_CHARS="${2}" ;;
+    -* | --*)
+      usage
+      error_exit "Unknown option $1" ;;
+    *)
+			;; 
+  esac
+  shift
+done
+
+# Main logic
+genpass $NUMBER_CHARS
+graceful_exit
+
